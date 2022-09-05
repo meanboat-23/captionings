@@ -13,7 +13,7 @@ from PIL import Image
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def video_to_frames(root_path, out_dir, output_dim: Tuple = (224, 224)):
+def video_to_frames(root_path, out_dir, output_dim):
     video = root_path
     vid = cv2.VideoCapture(video) #Open video file
     #os.mkdir(out_dir) #make only one dir
@@ -27,7 +27,7 @@ def video_to_frames(root_path, out_dir, output_dim: Tuple = (224, 224)):
         success, frame = vid.read() #read next frame
         count += 1
 
-def extract_feats(params, model, preprocess):
+def extract_feats(params, model, preprocess, output_dim): 
     #model.eval()
     features_dir = params['output_dir'] #select the dir where frame features will be stored
     if not os.path.isdir(features_dir): #if the dir is not exist then, make a new dir in the path
@@ -38,18 +38,19 @@ def extract_feats(params, model, preprocess):
     for video in tqdm(video_list): #to show the progress bar
         video_id = video.split("/")[-1].split(".")[0] #variable name video contains like '/home/minbae/Desktop/sequence/YouTubeClips/-4wsuPCjDBc_5_15.avi' so I need only file name, '-4wsuPCjDBc_5_15'
         vid_frame = params['model'] + '_' + video_id #select the path where video frames will be stored
-        video_to_frames(video,vid_frame)
+        video_to_frames(video,vid_frame, output_dim)
 
         image_list = sorted(glob.glob(os.path.join(vid_frame, '*.jpg'))) #return the file name that meets the conditions presented by the user in the form of a list
-        samples = np.round(range(10, len(image_list) - 1, params['n_frame'])) #sample every tenth frame
+        samples = np.round(range(0, len(image_list) - 1, params['n_frame'])) #sample every tenth frame 
         image_list = [image_list[int(sample)] for sample in samples] #choose the images that have same index in the array
         images = torch.zeros((len(image_list), 3, 224, 224)) #pad with zeros.
         
         for real in range(len(image_list)):
             img = preprocess(Image.open(image_list[real])) #process each frames into given condition
             images[real] = img
-    
-        out_feat = model(images.to(device)) #extract features
+
+        with torch.no_grad():
+            out_feat = model(images.to(device)) #extract features
         out = out_feat.cpu().detach().numpy() #.cpu().numpy(): if tensor is worked on gpu then, need to move into cpu and convert into numpy, detach(): contain informations of gradient then, need to erase to convert into numpy
         outfile = os.path.join(features_dir, video_id + '.npy') #select the path where the features will be stored
         
@@ -68,7 +69,8 @@ if __name__ == '__main__':
 
     if params['model'] == 'vgg': #to make vgg16 model
         model = models.vgg16(pretrained=True).to(device)
-        model.classifier = torch.nn.Sequential(*list(model.classifier.children())[:-1])
+        model.classifier = torch.nn.Sequential(*list(model.classifier.children())[:-1]) #need to modify the model
+        output_dim = (224,224)
     else:
         print("it doesn't support %s" % (params['model']))
 
@@ -79,4 +81,4 @@ if __name__ == '__main__':
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-    extract_feats(params, model, preprocess) 
+    extract_feats(params, model, preprocess, output_dim) 
