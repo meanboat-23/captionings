@@ -10,6 +10,7 @@ import glob
 import numpy as np
 import shutil
 from PIL import Image
+import pickle
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
@@ -28,6 +29,10 @@ def video_to_frames(root_path, out_dir, output_dim):
         count += 1
 
 def extract_feats(params, model, preprocess, output_dim): 
+    sum = 1
+    numofpadding = 0
+    numoftruncated = 0
+    normal = 0
     #model.eval()
     features_dir = params['output_dir'] #select the dir where frame features will be stored
     if not os.path.isdir(features_dir): #if the dir is not exist then, make a new dir in the path
@@ -42,26 +47,47 @@ def extract_feats(params, model, preprocess, output_dim):
 
         image_list = sorted(glob.glob(os.path.join(vid_frame, '*.jpg'))) #return the file name that meets the conditions presented by the user in the form of a list
         samples = np.round(range(0, len(image_list) - 1, params['n_frame'])) #sample every tenth frame 
+            
         image_list = [image_list[int(sample)] for sample in samples] #choose the images that have same index in the array
-        images = torch.zeros((len(image_list), 3, 224, 224)) #pad with zeros.
-        
+        images = torch.zeros((80, 3, 224, 224)) #pad with zeros.
+        #change len(image_list) into 80 fixed number
+        count = 1
         for real in range(len(image_list)):
+            count += 1
             img = preprocess(Image.open(image_list[real])) #process each frames into given condition
             images[real] = img
-
+            if count > 80: #truncate frames which are over 80
+                numoftruncated += 1
+                break
+        if count < 80: #count the number of video which frame is under 80steps
+            numofpadding += 1
+        elif count == 80: #count the number of video which frame is 80steps
+            normal += 1
         with torch.no_grad():
             out_feat = model(images.to(device)) #extract features
         out = out_feat.cpu().detach().numpy() #.cpu().numpy(): if tensor is worked on gpu then, need to move into cpu and convert into numpy, detach(): contain informations of gradient then, need to erase to convert into numpy
         outfile = os.path.join(features_dir, video_id + '.npy') #select the path where the features will be stored
         
         np.save(outfile, out) #save features as npy format
-        shutil.rmtree(vid_frame) #delete all files and dirs in the path 
-
+        shutil.rmtree(vid_frame) #delete all files and dirs in the path
+        if sum == 1:
+            first = out
+        elif sum == 2: # combine the numpy array at 3 dim
+            outnpy = np.block([[[first]], [[out]]])
+        else:
+            outnpy = np.block([[[outnpy]], [[out]]])
+        sum += 1
+    print(outnpy.shape) #show the total frames shape
+    print("video which needs to be padded:",numofpadding)
+    print("video which needs to be truncated",numoftruncated)
+    print("normal video: ",normal)
+    with open('extracted_feature,pickle','wb') as f: #save the (1970, 80, 4096) numpy at one file by pickle
+        pickle.dump(outnpy,f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser() #parse the arguments and adds value
     parser.add_argument("--output_dir", dest='output_dir', type=str, default='/home/minbae/Desktop/sequence/output', help='directory to store features')
-    parser.add_argument("--n_frame_steps", dest='n_frame', type=int, default=10, help='how many frames to sampler per video')
+    parser.add_argument("--n_frame_steps", dest='n_frame', type=int, default=10)
     parser.add_argument("--video_path", dest='video_path', type=str, default='/home/minbae/Desktop/sequence/YouTubeClips', help='path to video dataset')
     parser.add_argument("--model", dest="model", type=str, default='vgg', help='the CNN model which is used to extract_feats')
     args = parser.parse_args()
@@ -81,4 +107,10 @@ if __name__ == '__main__':
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ])
 
-    extract_feats(params, model, preprocess, output_dim) 
+    extract_feats(params, model, preprocess, output_dim)
+    with open("/home/minbae/Desktop/sequence/extracted_feature,pickle","rb") as f:
+        data = pickle.load(f)
+    print(data.shape)
+    print(np.mean(data))
+    print(np.std(data))
+    
