@@ -49,8 +49,7 @@ def extract_feats(params, model, preprocess, output_dim):
         samples = np.round(range(0, len(image_list) - 1, params['n_frame'])) #sample every tenth frame 
             
         image_list = [image_list[int(sample)] for sample in samples] #choose the images that have same index in the array
-        images = torch.zeros((80, 3, 224, 224)) #pad with zeros.
-        #change len(image_list) into 80 fixed number
+        images = torch.zeros((80, 3, 224, 224)) #pad with zeros and fixed 80.
         count = 1
         for real in range(len(image_list)):
             count += 1
@@ -59,9 +58,9 @@ def extract_feats(params, model, preprocess, output_dim):
             if count > 80: #truncate frames which are over 80
                 numoftruncated += 1
                 break
-        if count < 80: #count the number of video which frame is under 80steps
+        if count < 80:
             numofpadding += 1
-        elif count == 80: #count the number of video which frame is 80steps
+        elif count == 80:
             normal += 1
         with torch.no_grad():
             out_feat = model(images.to(device)) #extract features
@@ -72,22 +71,22 @@ def extract_feats(params, model, preprocess, output_dim):
         shutil.rmtree(vid_frame) #delete all files and dirs in the path
         if sum == 1:
             first = out
-        elif sum == 2: # combine the numpy array at 3 dim
+        elif sum == 2: # combine the numpy array
             outnpy = np.block([[[first]], [[out]]])
         else:
             outnpy = np.block([[[outnpy]], [[out]]])
         sum += 1
-    print(outnpy.shape) #show the total frames shape
+    print(outnpy.shape)
     print("video which needs to be padded:",numofpadding)
     print("video which needs to be truncated",numoftruncated)
     print("normal video: ",normal)
-    with open('extracted_feature,pickle','wb') as f: #save the (1970, 80, 4096) numpy at one file by pickle
+    with open('extracted_feature.pickle','wb') as f: #save the (1970, 80, 4096) numpy at one file by pickle
         pickle.dump(outnpy,f)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser() #parse the arguments and adds value
     parser.add_argument("--output_dir", dest='output_dir', type=str, default='/home/minbae/Desktop/sequence/output', help='directory to store features')
-    parser.add_argument("--n_frame_steps", dest='n_frame', type=int, default=10)
+    parser.add_argument("--n_frame_steps", dest='n_frame', type=int, default=10, help='how many frames to sampler per video')
     parser.add_argument("--video_path", dest='video_path', type=str, default='/home/minbae/Desktop/sequence/YouTubeClips', help='path to video dataset')
     parser.add_argument("--model", dest="model", type=str, default='vgg', help='the CNN model which is used to extract_feats')
     args = parser.parse_args()
@@ -108,7 +107,7 @@ if __name__ == '__main__':
     ])
 
     extract_feats(params, model, preprocess, output_dim)
-    with open("/home/minbae/Desktop/sequence/extracted_feature,pickle","rb") as f:
+    with open("/home/minbae/Desktop/sequence/extracted_feature.pickle","rb") as f:
         data = pickle.load(f)
     print(data.shape)
     print(np.mean(data))
