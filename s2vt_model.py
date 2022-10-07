@@ -51,7 +51,7 @@ class S2VT(torch.nn.Module):
                     output1, (hidden1, cell1) = self.lstm1(video_embeds[:, step, :], (hidden1, cell1))
                     output2, (hidden2, cell2) = self.lstm2(torch.cat((output1, padding_lstm2), 1), (hidden2, cell2))
 
-            previous_word = self.word_embedding(torch.ones((5)).type(torch.LongTensor).to(device))
+            previous_word = self.word_embedding(torch.ones((batch)).type(torch.LongTensor).to(device))
 
             for step in range (self.step):
                 if step == 0:
