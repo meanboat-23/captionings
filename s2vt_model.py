@@ -63,7 +63,7 @@ class S2VT(torch.nn.Module):
 
                 word_tensor = self.word_out(output2)
                 word_one_hot = torch.argmax(word_tensor, dim = 1)
-                word_one_hot_out = torch.argmax(word_tensor, dim = 1).reshape(5, -1)
+                word_one_hot_out = torch.argmax(word_tensor, dim = 1).reshape(batch, -1)
                 previous_word = self.word_embedding(word_one_hot)
 
                 if step == 0:
