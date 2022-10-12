@@ -1,5 +1,5 @@
-from text_process import *
-from model import S2VT
+from text_process_and_make_dataset import *
+from s2vt_model import S2VT
 import argparse
 from torch.utils.data import DataLoader
 import torch
@@ -18,16 +18,6 @@ nltk.download('omw-1.4')
 from nltk.translate.meteor_score import single_meteor_score
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
-
-def format_result(result) -> str:
-    try:
-        eos_idx = result.index('<EOS>')
-        formatted = result[:eos_idx]
-        return ' '.join(formatted)
-    except:
-        return ' '.join(result)
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()  # parse the arguments and adds value
