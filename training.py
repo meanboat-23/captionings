@@ -54,7 +54,7 @@ model = S2VT(vocab_size=train_dataset.vocabsize).to(device)
 optimizer = optim.Adam(model.parameters(), lr=params['learning_rate'])
 loss = torch.nn.CrossEntropyLoss()
 
-f = open('/home/minbae/Desktop/sequence/captions.txt', 'w')
+#f = open('/home/minbae/Desktop/sequence/captions.txt', 'w')
 
 epochs = params['epoch']
 
@@ -83,6 +83,7 @@ for epoch in range(epochs + 1):
         cost1 = loss(hypothesis, y_train)
 
         writer.add_scalar("Loss/val", cost1, epoch)
+'''
 model.eval()
 time = 0
 for batch_index, (X_test, y_test) in enumerate(test_dataloader):
@@ -102,3 +103,4 @@ for batch_index, (X_test, y_test) in enumerate(test_dataloader):
         time = time + 1
 writer.close()
 f.close()
+'''
